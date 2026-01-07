@@ -220,4 +220,3 @@ Detailed analysis is available in `notebooks/analysis.ipynb`.
 * **Docker-first execution** ensures portability and isolation
 * **MLflow tracking** replaces the need for persistent Optuna DB files
 * `__init__.py` is intentionally empty and valid for Python packaging
-
