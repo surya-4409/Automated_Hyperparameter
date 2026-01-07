@@ -1,66 +1,46 @@
+
 # Automated Hyperparameter Optimization with Optuna and MLflow
+
+## Author Information
+
+* **Name:** Billakurti Venkata Suryanarayana
+* **Roll Number:** 23MH1A4409
+
+---
 
 ## Project Overview
 
-This project implements a **production-grade automated hyperparameter optimization pipeline**
-using **Optuna** and **MLflow**.  
-The objective is to systematically tune an **XGBoost regression model** on the **California Housing dataset**
-while following modern **MLOps best practices** such as reproducibility, experiment tracking,
-containerization, and result visualization.
+This project implements a **production-grade automated hyperparameter optimization pipeline** using **Optuna** and **MLflow**. The goal is to move beyond manual trial-and-error tuning by implementing an intelligent, reproducible system to optimize an **XGBoost regressor** on the **California Housing dataset**.
 
-The pipeline performs:
-- Automated hyperparameter search with Optuna
-- Experiment tracking and model logging with MLflow
-- Final model training and evaluation
-- Generation of optimization visualizations
-- Fully containerized execution using Docker
+The system demonstrates modern **MLOps practices**, including:
+
+* **Automated Bayesian Search:** Using Optuna to efficiently navigate hyperparameter spaces.
+* **Experiment Tracking:** Logging every trial and metric to MLflow for full auditability.
+* **Containerized Execution:** Packaging the entire workflow into Docker for guaranteed reproducibility across any environment.
 
 ---
 
-## Tech Stack
+## Detailed Project Explanation
 
-- **Python** 3.9+
-- **XGBoost**
-- **Optuna**
-- **MLflow**
-- **scikit-learn**
-- **NumPy**
-- **Pandas**
-- **Docker**
+### 1. Data Pipeline
 
----
+The system utilizes the **California Housing dataset**. To ensure reliability against network errors (HTTP 403), the data is stored locally in `data/california_housing.csv`. The pipeline automatically splits this data into an 80/20 train/test ratio with a fixed seed for consistency.
 
-## Dataset
-**Note:**  
-The Kaggle dataset is functionally equivalent to the original California Housing dataset used in scikit-learn.
-### California Housing Dataset
+### 2. Search Space & Optimization
 
-Due to **network access restrictions** (HTTP 403 errors) when downloading the dataset via
-`sklearn.datasets.fetch_california_housing`, the dataset is **manually downloaded from Kaggle**
-and included locally.
+The pipeline tunes **7 critical hyperparameters**:
 
-- Source: Kaggle – *California Housing Dataset*
-- File location: `data/california_housing.csv`
+* `n_estimators`, `max_depth`, `learning_rate` (log scale), `subsample`, `colsample_bytree`, `min_child_weight`, and `gamma`.
 
-### Dataset Schema (Verified)
+It employs a **MedianPruner** to stop underperforming trials early, saving significant computational time. The optimization runs for exactly **100 trials** and uses a SQLite backend to support parallel execution with multiple workers.
 
-The dataset has been preprocessed to match the expected model input:
+### 3. Experiment Tracking (MLflow)
 
-| Column Name | Description |
-|------------|------------|
-| MedInc | Median income |
-| HouseAge | Median house age |
-| AveRooms | Average rooms |
-| AveBedrms | Average bedrooms |
-| Population | Population |
-| AveOccup | Average occupancy |
-| Latitude | Latitude |
-| Longitude | Longitude |
-| target | Median house value |
+Every trial is logged to the `optuna-xgboost-optimization` experiment. After the search, the system:
 
-**Shape:** `20640 × 9`
-
-The pipeline assumes this exact schema. Column validation is performed before training.
+* Identifies the best parameters.
+* Retrains a final model and logs it as an MLflow artifact.
+* Saves visualization plots (Optimization History and Param Importance) directly into MLflow.
 
 ---
 
@@ -68,147 +48,67 @@ The pipeline assumes this exact schema. Column validation is performed before tr
 
 ```text
 .
-├── Dockerfile
-├── requirements.txt
-├── .dockerignore
-├── README.md
-├── data/
-│   └── california_housing.csv
-├── src/
-│   ├── __init__.py
-│   ├── data_loader.py
-│   ├── objective.py
-│   ├── optimize.py
-│   └── evaluate.py
-├── notebooks/
-│   └── analysis.ipynb
-└── outputs/                     # generated at runtime
-    ├── mlruns/
-    ├── optimization_history.png
-    ├── param_importance.png
-    └── results.json
-````
+├── Dockerfile                  # Builds the Python 3.9 environment
+├── requirements.txt            # Project dependencies (XGBoost, Optuna, MLflow, etc.)
+├── .dockerignore               # Optimizes Docker build context
+├── data/                       # Dataset storage
+│   └── california_housing.csv  # Verified dataset
+├── src/                        # Modular source code
+│   ├── data_loader.py          # Data splitting logic
+│   ├── objective.py            # Search space and CV logic
+│   ├── optimize.py             # Main orchestration script
+│   └── evaluate.py             # Results persistence
+├── notebooks/                  # Post-optimization analysis
+│   └── analysis.ipynb          # Detailed insights and baseline comparison
+└── outputs/                    # Runtime generated artifacts (MLflow, DB, Plots)
 
-> **Note:**
-> The `outputs/` directory is created automatically when the Docker container runs.
-> It contains experiment logs, Optuna visualizations, and final optimization results.
+```
 
 ---
 
-## How the Pipeline Works
+## Setup and Usage Instructions
 
-1. **Data Loading**
+### 1. Clone the Repository
 
-   * Loads the local California Housing CSV
-   * Splits data into train/test sets
+```bash
+git clone <your-repository-url>
+cd <repository-name>
 
-2. **Hyperparameter Optimization**
+```
 
-   * Optuna performs automated hyperparameter search
-   * Search space includes depth, learning rate, estimators, sampling parameters, etc.
-   * Optimization objective minimizes RMSE
-
-3. **Experiment Tracking**
-
-   * All trials are logged to MLflow
-   * Best model parameters are stored
-   * Final model is logged as an MLflow artifact
-
-4. **Visualization**
-
-   * Optimization history plot
-   * Hyperparameter importance plot
-
-5. **Final Evaluation**
-
-   * Best model retrained on training data
-   * Evaluated on test set
-   * Results saved as JSON
-
----
-
-## How to Run (Docker)
-
-### 1. Build the Docker Image
+### 2. Build the Docker Image
 
 ```bash
 docker build -t optuna-mlflow-pipeline .
+
 ```
 
-### 2. Run the Container
+### 3. Run the Optimization Pipeline
 
-#### Linux / macOS
+To ensure the results are saved to your local machine, run the container with a volume mount:
+
+**For Linux or macOS:**
 
 ```bash
 docker run -v $(pwd)/outputs:/app/outputs optuna-mlflow-pipeline
+
 ```
 
-#### Windows PowerShell
+**For Windows (PowerShell):**
 
-```powershell
+```bash
 docker run -v ${PWD}/outputs:/app/outputs optuna-mlflow-pipeline
+
 ```
 
-The container will:
-
-* Run the Optuna optimization process
-* Log experiments to MLflow
-* Generate visualizations
-* Save results to the `outputs/` directory
-* Exit automatically after completion
-
 ---
 
-## Outputs
+## Expected Outputs
 
-After execution, the following files are generated in `outputs/`:
+After the run completes, the `outputs/` directory will contain:
 
-* `results.json`
-  Summary of best hyperparameters and evaluation metrics
-
-* `optimization_history.png`
-  Visualization of Optuna optimization progress
-
-* `param_importance.png`
-  Hyperparameter importance plot
-
-* `mlruns/`
-  MLflow experiment tracking data (metrics, parameters, artifacts)
-
-> **Note:**
-> The Optuna study database (`optuna_study.db`) is optional.
-> This implementation uses in-memory and MLflow-based tracking, which is sufficient
-> for full reproducibility and evaluation.
-
----
-
-## Results Summary
-
-* The optimized XGBoost model significantly improves performance over baseline
-* RMSE is substantially reduced after tuning
-* R² score exceeds the project performance threshold
-* Most influential hyperparameters:
-
-  * Learning rate
-  * Max depth
-  * Number of estimators
-
-Detailed analysis is available in `notebooks/analysis.ipynb`.
-
----
-
-## Reproducibility
-
-* Random seeds are fixed across NumPy, scikit-learn, and XGBoost
-* Docker ensures environment consistency
-* Results are reproducible across runs on different machines
-
----
-
-## Notes on Design Decisions
-
-* **Kaggle dataset usage** ensures reliability when sklearn downloads fail
-* **Docker-first execution** ensures portability and isolation
-* **MLflow tracking** replaces the need for persistent Optuna DB files
-* `__init__.py` is intentionally empty and valid for Python packaging
-
+* **`results.json`**: A summary of the best parameters and test metrics.
+* **`optimization_history.png`**: Plot showing the objective value over trials.
+* **`param_importance.png`**: Chart showing which parameters impacted performance most.
+* **`mlruns/`**: Complete MLflow tracking database and model artifacts.
+* **`optuna_study.db`**: The SQLite database for the Optuna study.
